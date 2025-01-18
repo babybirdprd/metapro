@@ -3,9 +3,12 @@ import { Message, streamText } from 'ai'
 
 export type AvailableModel = string
 
+const apiKey = process.env.OPENROUTER_API_KEY
+
 const openrouter = createOpenRouter({
-	apiKey: process.env.OPENROUTER_API_KEY,
+	apiKey,
 })
+
 
 export function buildPrompt(messages: Message[]) {
 	const lastMessage = messages[messages.length - 1]
@@ -19,7 +22,7 @@ export function buildPrompt(messages: Message[]) {
 }
 
 export async function chat(messages: Message[], modelId: string) {
-	if (!process.env.OPENROUTER_API_KEY) {
+	if (!apiKey) {
 		throw new Error('OPENROUTER_API_KEY is not set')
 	}
 
@@ -55,24 +58,27 @@ export async function chat(messages: Message[], modelId: string) {
 }
 
 export async function getAvailableModels() {
-	if (!process.env.OPENROUTER_API_KEY) {
+	if (!apiKey) {
 		throw new Error('OPENROUTER_API_KEY is not set')
 	}
 
 	try {
 		const response = await fetch('https://openrouter.ai/api/v1/models', {
 			headers: {
-				'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-				'HTTP-Referer': process.env.VERCEL_URL || 'http://localhost:3000',
+				'Authorization': `Bearer ${apiKey}`,
+				'HTTP-Referer': 'http://localhost:3000',
 				'X-Title': 'Metaprompting Studio',
+				'Content-Type': 'application/json',
 			},
+			cache: 'no-store'
 		})
 		
 		if (!response.ok) {
-			throw new Error('Failed to fetch models')
+			throw new Error(`Failed to fetch models: ${response.statusText}`)
 		}
 		
-		return response.json()
+		const data = await response.json()
+		return { data: data.data || [] }
 	} catch (error) {
 		console.error('Error fetching models:', error)
 		throw error

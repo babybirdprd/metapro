@@ -20,19 +20,38 @@ export function Preview() {
 		const fetchModels = async () => {
 			try {
 				const response = await getAvailableModels()
-				if (response.data) {
-					const modelList = response.data.map((model: any) => ({
-						id: model.id,
-						name: model.name
-					}))
+				if (response?.data) {
+					const modelList = response.data
+						.filter((model: any) => model.id && model.name)
+						.map((model: any) => ({
+							id: model.id,
+							name: model.name
+						}))
 					setModels(modelList)
 					if (modelList.length > 0) {
 						setSelectedModel(modelList[0].id)
 					}
+				} else {
+					// Fallback to default models if API fails
+					const defaultModels = [
+						{ id: 'anthropic/claude-2.1', name: 'Claude 2.1' },
+						{ id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B' },
+						{ id: 'meta-llama/llama-2-70b-chat', name: 'Llama 2 70B' }
+					]
+					setModels(defaultModels)
+					setSelectedModel(defaultModels[0].id)
 				}
 			} catch (error) {
 				console.error('Error fetching models:', error)
-				toast.error('Failed to fetch available models')
+				// Use default models on error
+				const defaultModels = [
+					{ id: 'anthropic/claude-2.1', name: 'Claude 2.1' },
+					{ id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B' },
+					{ id: 'meta-llama/llama-2-70b-chat', name: 'Llama 2 70B' }
+				]
+				setModels(defaultModels)
+				setSelectedModel(defaultModels[0].id)
+				toast.error('Using default models - API fetch failed')
 			}
 		}
 		fetchModels()

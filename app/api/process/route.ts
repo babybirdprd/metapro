@@ -2,6 +2,13 @@ import { Message, streamText } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { z } from 'zod'
 
+if (!process.env.OPENROUTER_API_KEY) {
+	throw new Error('OPENROUTER_API_KEY environment variable is not set')
+}
+
+const openrouter = createOpenRouter({
+	apiKey: process.env.OPENROUTER_API_KEY,
+})
 
 const requestSchema = z.object({
 	messages: z.array(z.object({
@@ -11,7 +18,7 @@ const requestSchema = z.object({
 	})).optional(),
 	metaprompt: z.string(),
 	input: z.string(),
-	model: z.enum(['claude', 'llama', 'mistral']).default('claude'),
+	model: z.string(),
 })
 
 export async function POST(req: Request) {
@@ -20,6 +27,7 @@ export async function POST(req: Request) {
 		const { messages = [], metaprompt, input, model } = requestSchema.parse(json)
 
 		// Process the metaprompt with user input
+
 		const processedMetaprompt = metaprompt.replace('{{user-input}}', input)
 		
 		// Filter out any system messages from the history
@@ -35,11 +43,8 @@ export async function POST(req: Request) {
 			}
 		]
 
-		const openrouter = createOpenRouter({
-			apiKey: process.env.OPENROUTER_API_KEY,
-		})
-
 		const result = await streamText({
+
 			model: openrouter(model),
 			messages: updatedMessages.map(msg => ({
 				...msg,
