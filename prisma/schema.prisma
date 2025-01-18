@@ -1,0 +1,57 @@
+generator client {
+	provider = "prisma-client-js"
+}
+
+datasource db {
+	provider = "sqlite"
+	url      = env("DATABASE_URL")
+}
+
+model Metaprompt {
+	id          String   @id @default(cuid())
+	title       String
+	description String
+	xml         String
+	version     Int      @default(1)
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
+	userId      String
+	executions  PromptExecution[]
+	history     MetapromptHistory[]
+
+	@@index([userId])
+}
+
+model MetapromptHistory {
+	id           String     @id @default(cuid())
+	metapromptId String
+	xml          String
+	version      Int
+	createdAt    DateTime   @default(now())
+	metaprompt   Metaprompt @relation(fields: [metapromptId], references: [id])
+
+	@@index([metapromptId])
+}
+
+model PromptExecution {
+	id           String     @id @default(cuid())
+	metapromptId String
+	input        String
+	output       String
+	executionTime Int
+	createdAt    DateTime   @default(now())
+	metaprompt   Metaprompt @relation(fields: [metapromptId], references: [id])
+
+	@@index([metapromptId])
+}
+
+model QualityAnalysis {
+	id           String   @id @default(cuid())
+	metapromptId String
+	score        Int
+	suggestions  String
+	metrics      String
+	createdAt    DateTime @default(now())
+
+	@@index([metapromptId])
+}
