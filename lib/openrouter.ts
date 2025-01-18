@@ -1,14 +1,20 @@
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { Message, streamText } from 'ai'
+import { Message } from 'ai'
 
 export type AvailableModel = string
 
-const apiKey = process.env.OPENROUTER_API_KEY
-
-const openrouter = createOpenRouter({
-	apiKey,
-})
-
+export async function getAvailableModels() {
+	try {
+		const response = await fetch('/api/models')
+		if (!response.ok) {
+			throw new Error(`Failed to fetch models: ${response.statusText}`)
+		}
+		const data = await response.json()
+		return data
+	} catch (error) {
+		console.error('Error fetching models:', error)
+		throw error
+	}
+}
 
 export function buildPrompt(messages: Message[]) {
 	const lastMessage = messages[messages.length - 1]
@@ -22,10 +28,6 @@ export function buildPrompt(messages: Message[]) {
 }
 
 export async function chat(messages: Message[], modelId: string) {
-	if (!apiKey) {
-		throw new Error('OPENROUTER_API_KEY is not set')
-	}
-
 	try {
 		const prompt = buildPrompt(messages)
 		
@@ -38,49 +40,28 @@ export async function chat(messages: Message[], modelId: string) {
 			Focus on providing clear, actionable output based on the metaprompt structure.`
 		}
 
-		const result = streamText({
-			model: openrouter(modelId),
-			messages: [
-				{ role: "system" as const, content: systemMessage.content },
-				...messages.slice(0, -1),
-				{ role: 'user', content: prompt }
-			]
-		})
-
-		return result.toDataStreamResponse()
-
-		return Response
-	} catch (error) {
-		console.error('Error in chat:', error)
-		throw error
-
-	}
-}
-
-export async function getAvailableModels() {
-	if (!apiKey) {
-		throw new Error('OPENROUTER_API_KEY is not set')
-	}
-
-	try {
-		const response = await fetch('https://openrouter.ai/api/v1/models', {
+		const response = await fetch('/api/process', {
+			method: 'POST',
 			headers: {
-				'Authorization': `Bearer ${apiKey}`,
-				'HTTP-Referer': 'http://localhost:3000',
-				'X-Title': 'Metaprompting Studio',
 				'Content-Type': 'application/json',
 			},
-			cache: 'no-store'
+			body: JSON.stringify({
+				messages: [
+					{ role: "system" as const, content: systemMessage.content },
+					...messages.slice(0, -1),
+					{ role: 'user', content: prompt }
+				],
+				model: modelId,
+			}),
 		})
-		
+
 		if (!response.ok) {
-			throw new Error(`Failed to fetch models: ${response.statusText}`)
+			throw new Error('Failed to process chat')
 		}
-		
-		const data = await response.json()
-		return { data: data.data || [] }
+
+		return response
 	} catch (error) {
-		console.error('Error fetching models:', error)
+		console.error('Error in chat:', error)
 		throw error
 	}
 }

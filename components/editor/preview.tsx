@@ -68,7 +68,6 @@ export function Preview() {
 	const { messages, handleSubmit, isLoading, setMessages } = useChat({
 		api: '/api/process',
 		body: {
-			metaprompt: content,
 			model: selectedModel,
 		},
 		onResponse: (response) => {
@@ -86,6 +85,7 @@ export function Preview() {
 		},
 	})
 
+
 	// Clear messages when content changes
 	useEffect(() => {
 		setMessages([])
@@ -95,15 +95,26 @@ export function Preview() {
 	const handleGenerate = useCallback((e: React.FormEvent) => {
 		e.preventDefault()
 		if (!testInput || !content) return
+		
+		const processedContent = content.replace('{{user-input}}', testInput)
+		const systemMessage = {
+			role: 'system',
+			content: `You are an expert prompt engineer processing metaprompts.
+			Process the metaprompt according to its structure and generate appropriate output.
+			Maintain a professional and precise tone in your responses.
+			Focus on providing clear, actionable output based on the metaprompt structure.`
+		}
+
 		handleSubmit(e, {
 			body: { 
-				input: testInput,
-				messages: storeMessages,
+				messages: [
+					systemMessage,
+					{ role: 'user', content: processedContent }
+				],
 				model: selectedModel,
 			}
 		})
-
-	}, [content, testInput, storeMessages, selectedModel, handleSubmit])
+	}, [content, testInput, selectedModel, handleSubmit])
 
 	return (
 		<Card className="h-full border-0 rounded-none">
