@@ -5,11 +5,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useEditorStore } from '@/lib/store'
 import { useChat } from 'ai/react'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { AvailableModel, getAvailableModels } from '@/lib/openrouter'
+import { toast } from 'sonner'
 
 export function Preview() {
+	const [selectedModel, setSelectedModel] = useState<AvailableModel>('')
+	const [models, setModels] = useState<{id: string, name: string}[]>([])
+
+	useEffect(() => {
+		const fetchModels = async () => {
+			try {
+				const response = await getAvailableModels()
+				if (response.data) {
+					const modelList = response.data.map((model: any) => ({
+						id: model.id,
+						name: model.name
+					}))
+					setModels(modelList)
+					if (modelList.length > 0) {
+						setSelectedModel(modelList[0].id)
+					}
+				}
+			} catch (error) {
+				console.error('Error fetching models:', error)
+				toast.error('Failed to fetch available models')
+			}
+		}
+		fetchModels()
+	}, [])
 	const { 
 		content, 
 		testInput, 
@@ -18,13 +45,16 @@ export function Preview() {
 		setMessages: setStoreMessages,
 		clearMessages 
 	} = useEditorStore()
+
 	const { messages, handleSubmit, isLoading, setMessages } = useChat({
 		api: '/api/process',
 		body: {
 			metaprompt: content,
+			model: selectedModel,
 		},
 		onResponse: (response) => {
 			if (!response.ok) {
+				toast.error('Failed to generate response')
 				throw new Error('Failed to generate response')
 			}
 		},
@@ -33,6 +63,7 @@ export function Preview() {
 		},
 		onError: (error) => {
 			console.error('Error:', error)
+			toast.error('Error generating response')
 		},
 	})
 
@@ -45,15 +76,15 @@ export function Preview() {
 	const handleGenerate = useCallback((e: React.FormEvent) => {
 		e.preventDefault()
 		if (!testInput || !content) return
-		handleSubmit(e, { 
-			options: { 
-				body: { 
-					input: testInput,
-					messages: storeMessages 
-				} 
-			} 
+		handleSubmit(e, {
+			body: { 
+				input: testInput,
+				messages: storeMessages,
+				model: selectedModel,
+			}
 		})
-	}, [content, testInput, storeMessages, handleSubmit])
+
+	}, [content, testInput, storeMessages, selectedModel, handleSubmit])
 
 	return (
 		<Card className="h-full border-0 rounded-none">
@@ -63,8 +94,22 @@ export function Preview() {
 					<TabsTrigger value="output">Output</TabsTrigger>
 				</TabsList>
 				<TabsContent value="input" className="h-[calc(90vh-40px)]">
-					<div className="flex flex-col h-full gap-4 p-4">
-						<Textarea 
+          <div className="flex flex-col h-full gap-4 p-4">
+            <div className="flex gap-4 items-center">
+              <Select value={selectedModel} onValueChange={(value) => setSelectedModel(value as AvailableModel)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+  {models.map((model) => (
+	<SelectItem key={model.id} value={model.id}>
+	  {model.name}
+	</SelectItem>
+  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Textarea 
 							placeholder="Enter your test input here..."
 							className="flex-1 font-mono"
 							value={testInput}
